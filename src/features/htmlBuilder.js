@@ -185,7 +185,7 @@ export function getHomepage() {
   const statusLabel = document.getElementById('label_status');
   toggle.addEventListener('change', function() {
     if (this.checked) {
-      statusLabel.textContent = '永不销毁';
+      statusLabel.textContent = '1星期后销毁';
       statusLabel.style.color = '#ff4d4d';
     } else {
       statusLabel.textContent = '12小时销毁';
