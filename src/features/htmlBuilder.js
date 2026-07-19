@@ -27,13 +27,16 @@ const styles = `
       background: #eff1f26a; padding: 25px; border-radius: 18px;
       box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); backdrop-filter: blur(4px);
     }
-    input[type="url"], input[type="number"], input[type="text"] {
+    input[type="url"], input[type="number"], input[type="text"], textarea {
       padding: 15px; border: 3px solid #ccc;
       border-radius: 5px; margin-bottom: 20px; margin-top: 10px;
       box-sizing: border-box;
     }
     input.url-input {
       width: 80%;
+    }
+    textarea.text-output {
+      width: 80%; height: 160px; resize: none; font-size: 16px; font-family: inherit;
     }
     input.visits-input {
       width: 150px;
@@ -82,7 +85,7 @@ const styles = `
       .top-banner { display: none; }
       #check_title { font-size: 28px; }
       .form-row p { font-size: 16px; }
-      input.url-input, input.visits-input { width: 90%; }
+      input.url-input, input.visits-input, textarea.text-output { width: 90%; }
       ::placeholder { font-size: 12px; }
     }
 </style>
@@ -93,7 +96,7 @@ const styles = `
     let backgroundUrl;
     try {
       backgroundUrl = new URL(isMobile ? "${BACKGROUND_VERTICAL}" : "${BACKGROUND}");
-      backgroundUrl.searchParams.append('t', Date.now());  // 添加时间戳以强制浏览器重新加载图片
+      backgroundUrl.searchParams.append('t', Date.now()); 
     } catch (err) {
       console.error('Failed to parse background URL:', err);
       backgroundUrl = "none";
@@ -116,7 +119,6 @@ const topBanner = `
 `;
 
 // 基础页面布局函数 (核心)
-// 接收页面标题和主要内容HTML，返回一个完整的HTML文档
 function getLayout(pageTitle, contentHtml, extraHeadHtml = '') {
   return `
 <!DOCTYPE HTML>
@@ -149,10 +151,11 @@ function getLayout(pageTitle, contentHtml, extraHeadHtml = '') {
 // 首页内容
 export function getHomepage() {
   const content = `
-<h1 id="check_title"><span class="gorgeous-blue-gradient">阅后即焚</span> 短链接</h1>
+<h1 id="check_title"><span class="gorgeous-blue-gradient">阅后即焚</span> 共享箱</h1>
 <form method="POST" action="/" class="form-row">
-    <p>输入一个希望跳转的URL</p>
-    <input type="url" name="url" class="url-input" placeholder="https://example.com" required>
+    <p>输入你希望分享的网址、密码或任意文本内容</p>
+    <!-- 【修改点 1】将 type="url" 变更为 type="text"，允许输入任何文本 -->
+    <input type="text" name="url" class="url-input" placeholder="https://... 或 敏感密码/文本内容" required>
 
     <div class="settings-row">
         <div class="setting-item">
@@ -189,11 +192,9 @@ export function getHomepage() {
       statusLabel.style.color = '#5cb85c';
     }
   });
-  // 初始化状态
   statusLabel.style.color = '#5cb85c';
 </script>
 `;
-  // 为首页添加 Turnstile 的脚本
   const turnstileScript = `<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>`;
   return getLayout('创建链接', content, turnstileScript);
 }
@@ -202,7 +203,7 @@ export function getHomepage() {
 export function getSuccessPage(shortUrl) {
   const content = `
 <h1>创建成功!</h1>
-<p>你的短链接是:</p>
+<p>你的私密提取链接是:</p>
 <input type="text" id="shortUrl" value="${shortUrl}" readonly>
 <button id="copyButton" class="copy-button">复制</button>
 <p style="margin-top: 20px;"><a href="/">创建另一个</a></p>
@@ -211,7 +212,7 @@ export function getSuccessPage(shortUrl) {
   copyButton.addEventListener('click', () => {
     const urlInput = document.getElementById('shortUrl');
     urlInput.select();
-    urlInput.setSelectionRange(0, 99999); // For mobile devices
+    urlInput.setSelectionRange(0, 99999); 
     navigator.clipboard.writeText(urlInput.value).then(() => {
       copyButton.textContent = '已复制!';
       copyButton.style.backgroundColor = '#5cb85c';
@@ -226,6 +227,37 @@ export function getSuccessPage(shortUrl) {
 </script>
 `;
   return getLayout('创建成功', content);
+}
+
+// 【修改点 2】新增：展示非网址内容的文本显示页面
+export function getTextViewPage(textRaw) {
+  const safeText = encodeHTML(textRaw);
+  const content = `
+<h1>🔒 收到一条私密信息</h1>
+<p style="color: #ff4d4d; font-size: 16px; font-weight: bold;">⚠️ 注意：本页面关闭或刷新后，内容将彻底销毁！</p>
+<textarea class="text-output" id="textOutput" readonly>${safeText}</textarea>
+<br>
+<button id="copyTextButton" class="copy-button">一键复制内容</button>
+<p style="margin-top: 20px;"><a href="/">我也要发一条</a></p>
+<script>
+  const copyTextBtn = document.getElementById('copyTextButton');
+  copyTextBtn.addEventListener('click', () => {
+    const txtArea = document.getElementById('textOutput');
+    txtArea.select();
+    navigator.clipboard.writeText(txtArea.value).then(() => {
+      copyTextBtn.textContent = '内容已成功复制!';
+      copyTextBtn.style.backgroundColor = '#5cb85c';
+      setTimeout(() => {
+        copyTextBtn.textContent = '一键复制内容';
+        copyTextBtn.style.backgroundColor = '#2c7cb0';
+      }, 2000);
+    }).catch(err => {
+      alert('复制失败: ' + err);
+    });
+  });
+</script>
+`;
+  return getLayout('查看私密信息', content);
 }
 
 // 错误页面内容
