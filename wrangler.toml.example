@@ -15,7 +15,7 @@ id = "__KV_NAMESPACE_ID__"
 # 默认过期时间（秒），12小时 = 43200秒
 DEFAULT_TTL_SECONDS = 43200
 # 站点图标，留空则使用 Cloudflare 默认图标
-HOME_ICON = ""
+HOME_ICON = "https://cdn.illusionlie.com/img/iL/ico/iL-circle.ico"
 # 站点主标题
 TITLE = "阅后即焚"
 # PC 端背景图
