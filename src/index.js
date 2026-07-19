@@ -58,7 +58,7 @@ router.post('/', async (request, env) => {
 			return response.error('人机验证失败，请刷新页面重试。', 403);
 		}
 	} catch (err) {
-		console.error('Error verifying Turnstile:', e);
+		console.error('Error verifying Turnstile:', err);
 		return response.error('无法验证请求来源，请稍后重试。', 500);
 	}
 
@@ -75,21 +75,23 @@ router.post('/', async (request, env) => {
 		}
 	}
 
-	const targetUrl = formData.get('url');
+	const targetUrl = formData.get('url'); // 这里现在包含网址或任意纯文本
 	const visitsInput = formData.get('visits');
 	const noExpire = formData.get('no_expire') === 'on';
 
-	let parsedTargetUrl;
+	// 【修改点 1】放宽限制：智能处理输入数据，不再一刀切地阻断非 URL 文本
+	if (!targetUrl || targetUrl.trim() === '') {
+		return response.error('提交的内容不能为空。', 400);
+	}
+
+	// 如果输入的内容碰巧符合 URL 格式，我们额外检查是否恶意循环指向本站
 	try {
-    parsedTargetUrl = new URL(targetUrl);
-    if (!['http:', 'https:'].includes(parsedTargetUrl.protocol)) {
-      return response.error('只支持 HTTP/HTTPS 协议的 URL。', 400);
-    }
-    if (parsedTargetUrl.hostname === url.hostname) {
-      return response.error('不允许创建指向本站的循环链接。', 400);
-    }
+		const checkUrl = new URL(targetUrl.trim());
+		if (['http:', 'https:'].includes(checkUrl.protocol) && checkUrl.hostname === url.hostname) {
+			return response.error('不允许创建指向本站的循环链接。', 400);
+		}
 	} catch (err) {
-    return response.error('提交的 URL 格式不正确，请返回重试。', 400);
+		// 如果无法转为 URL，说明它是普通密码或大段文本，忽略该错误正常放行即可
 	}
 
   let maxVisits;
@@ -118,7 +120,7 @@ router.post('/', async (request, env) => {
   } while (exists);
 
 	const data = {
-		url: targetUrl,
+		url: targetUrl, // 统一存入 KV
 		remainingVisits: maxVisits,
 	};
 
@@ -135,7 +137,7 @@ router.post('/', async (request, env) => {
 	return response.html(html);
 });
 
-// 处理跳转请求
+// 处理跳转或文本提取展示请求
 router.get('/:id', async ({ params, ...request }, env) => {
   const response = new ResponseBuilder(request, env);
 	const id = params.id;
@@ -168,7 +170,19 @@ router.get('/:id', async ({ params, ...request }, env) => {
 		}
 	}
 
-	return response.redirect(data.url, 302);
+	// 【修改点 2】智能分流分发：
+	// 用正则判断内容是否为一个标准的 http:// 或 https:// 网址
+	const contentStr = data.url ? data.url.trim() : '';
+	const isStandardUrl = /^(http|https):\/\/[^\s$.?#].[^\s]*$/i.test(contentStr);
+
+	if (isStandardUrl) {
+		// 如果是标准的网址，仍然执行原有的 302 重定向跳转
+		return response.redirect(contentStr, 302);
+	} else {
+		// 如果输入的是纯文本/密码等，渲染前面新添加的文本展示卡片 HTML
+		const textHtml = pageBuilder.getTextViewPage(contentStr);
+		return response.html(textHtml);
+	}
 });
 
 // 404 页面
@@ -180,7 +194,8 @@ router.all('*', (request, env) => {
 export default {
   async fetch(request, env) {
 		if (!env.KV) {
-      return errorResponse('服务配置错误：KV 命名空间未绑定。', 500);
+      // 兼容底层抛出错误函数的备用写法
+      return new Response('服务配置错误：KV 命名空间未绑定。', { status: 500 });
 		}
 		return router.fetch(request, env);
 	}
