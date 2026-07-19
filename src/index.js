@@ -122,6 +122,8 @@ router.post('/', async (request, env) => {
 	const options = {};
 	if (!noExpire) {
 		options.expirationTtl = env.DEFAULT_TTL_SECONDS || 43200;
+	} else {
+	options.expirationTtl = 604800; // 核心改动：勾选后，强行设置一星期（604800秒）后销毁	
 	}
 
 	await env.KV.put(id, JSON.stringify(data), options);
