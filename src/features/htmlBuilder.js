@@ -160,7 +160,7 @@ export function getHomepage() {
     <div class="settings-row">
         <div class="setting-item">
             <p>最大访问次数</p>
-            <input type="number" name="visits" min="1" max="99" class="visits-input" placeholder="1-99次, 留空不限">
+            <input type="number" name="visits" min="1" max="99" class="visits-input" value="1" placeholder="1-99次, 留空不限">
         </div>
 
         <div class="setting-item">
